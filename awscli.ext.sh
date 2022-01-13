@@ -1,6 +1,6 @@
 #!/bin/bash
 
-now() {
+__now() {
     date +%s
 }
 
@@ -173,7 +173,7 @@ aws_sts_remaining_seconds() {
         echo 0
     else
         local remaining_seconds
-        remaining_seconds=$(( AWS_STS_EXPIRY_EPOCH - $(now) ))
+        remaining_seconds=$(( AWS_STS_EXPIRY_EPOCH - $(__now) ))
 
         if [ $remaining_seconds -le 0 ]; then
             echo 0
@@ -242,7 +242,7 @@ aws_sts_get_session_token() {
     export AWS_SESSION_TOKEN=${session_token_response_list[2]}
 
     # Note its possible to parse this with GNU date, but its easier to support portability this way.
-    export AWS_STS_EXPIRY_EPOCH=$(( $(now) + duration_seconds ))  # Machine friendly; estimated value
+    export AWS_STS_EXPIRY_EPOCH=$(( $(__now) + duration_seconds ))  # Machine friendly; estimated value
     export AWS_STS_EXPIRY_ISO8601=${session_token_response_list[3]}  # Human friendly; absolute value
 
     aws_env_print
