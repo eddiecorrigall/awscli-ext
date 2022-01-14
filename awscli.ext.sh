@@ -214,7 +214,7 @@ aws_sts_get_session_token() {
     fi
 
     local token_code
-    read -r -p 'OTP Code: ' token_code
+    read -r -p 'One-time Password (MFA Code): ' token_code
     if [ -z "$token_code" ]; then
         echo 'ERROR: Missing token code!' > /dev/stderr
         return 1
