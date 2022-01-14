@@ -1,0 +1,116 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: AWS IAM User Group Stack
+Parameters:
+  BillingGroupName:
+    Type: String
+    Default: BillingAccess
+  DeveloperGroupName:
+    Type: String
+    Default: DeveloperAccess
+  ReadOnlyGroupName:
+    Type: String
+    Default: ReadOnlyAccess
+Resources:
+  UserSelfServiceDefaultPolicy:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      Groups:
+        - !Ref DeveloperGroup
+        - !Ref ReadOnlyGroup
+        - !Ref BillingGroupName
+      PolicyName: UserCredsSelfService
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Resource:
+              - !Join 
+                - ''
+                - - 'arn:aws:iam::'
+                  - !Ref 'AWS::AccountId'
+                  - ':user/${aws:username}'
+              - !Join 
+                - ''
+                - - 'arn:aws:iam::'
+                  - !Ref 'AWS::AccountId'
+                  - ':mfa/${aws:username}'
+            Action:
+              - 'iam:CreateVirtualMFADevice'
+              - 'iam:EnableMFADevice'
+              - 'iam:ResyncMFADevice'
+  UserSelfServiceMFAPolicy:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      Groups:
+        - !Ref DeveloperGroup
+        - !Ref ReadOnlyGroup
+        - !Ref BillingGroup
+      PolicyName: UserCredsSelfServiceMFARequired
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Resource:
+              - !Join 
+                - ''
+                - - 'arn:aws:iam::'
+                  - !Ref 'AWS::AccountId'
+                  - ':user/${aws:username}'
+              - !Join 
+                - ''
+                - - 'arn:aws:iam::'
+                  - !Ref 'AWS::AccountId'
+                  - ':mfa/${aws:username}'
+            Action:
+              - 'iam:ChangePassword'
+              - 'iam:CreateAccessKey'
+              - 'iam:DeactivateMFADevice'
+              - 'iam:DeleteAccessKey'
+              - 'iam:DeleteSigningCertificate'
+              - 'iam:DeleteVirtualMFADevice'
+              - 'iam:UpdateAccessKey'
+              - 'iam:UpdateLoginProfile'
+              - 'iam:UpdateSigningCertificate'
+              - 'iam:UploadSigningCertificate'
+            Condition:
+              NumericLessThan:
+                'aws:MultiFactorAuthAge': '900'
+  BillingGroup:
+    Type: 'AWS::IAM::Group'
+    Properties:
+      GroupName: !Ref BillingGroupName
+      Policies:
+        - PolicyName: AcquiaBilling
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: Stmt1437848210000
+                Effect: Allow
+                Action:
+                  - 'aws-portal:ViewBilling'
+                  - 'aws-portal:ViewUsage'
+                Resource:
+                  - '*'
+  DeveloperGroup:
+    Type: 'AWS::IAM::Group'
+    Properties:
+      GroupName: !Ref DeveloperGroupName
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/IAMReadOnlyAccess'
+      Policies:
+        - PolicyName: AllowDeveloperAccess
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: '*'
+                Resource: '*'
+                Condition:
+                  NumericLessThan:
+                    'aws:MultiFactorAuthAge': '900'
+  ReadOnlyGroup:
+    Type: 'AWS::IAM::Group'
+    Properties:
+      GroupName: !Ref ReadOnlyGroupName
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/IAMReadOnlyAccess'
