@@ -38,14 +38,59 @@ profile:default ⬢
 thehostname:~ theuser$
 ```
 
-- The red stop-sign (<span style="color:#FF0000">⬢</span>) means that the `AWS_SESSION_TOKEN` is empty, or has expired.
+The red stop-sign (<span style="color:#FF0000">⬢</span>) means that the `AWS_SESSION_TOKEN` is empty, or has expired.
 
-- A green up-arrow (<span style="color:#32CD32;">▲</span>) means that the `AWS_SESSION_TOKEN` is set, and it has not expired. The prompt will include the remaining seconds that the token has left.
+A green up-arrow (<span style="color:#32CD32;">▲</span>) means that the `AWS_SESSION_TOKEN` is set, and it has not expired. The prompt will include the remaining seconds that the token has left.
 
 ```bash
 profile:default ▲ [403s]
 thehost:~ theuser$
 ```
+
+Alternatively, if your bash profile already has a `PROMPT_COMMAND` defined, you can incorporate helper commands or environment variables to design your own.
+
+## Bash Functions
+
+### AWS Environment Variable
+- `aws_env_clear` (interactive)
+- `aws_env_export_user_name` (interactive)
+- `aws_env_export_account_alias` (interactive)
+- `aws_env_export` (interactive)
+- `aws_env_print_profile` (stdout text)
+- `aws_env_print_default_region` (stdout text)
+- `aws_env_print_account_alias` (stdout text)
+- `aws_env_print_user_name` (stdout text)
+- `aws_env_print` (stdout text)
+
+### AWS Profile
+- `aws_profile_add` (interactive)
+- `aws_profile_get` (interactive)
+- `aws_profile_set` (interactive)
+- `aws_profile_reset` (interactive)
+- `aws_profile_prompt` (stdout text)
+
+### AWS Simple Token Service (STS)
+- `aws_sts_remaining_seconds` (stdout number)
+- `aws_sts_is_expired` (stdout boolean)
+- `aws_sts_get_session_token` (interactive)
+- `aws_sts_prompt` (stdout text)
+
+### BASH PS1
+- `aws_ps1` (stdout text)
+
+## Environment Variables
+
+Official AWS environment variables
+- `AWS_PROFILE`
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `AWS_SESSION_TOKEN`
+
+Unofficial AWS environment variables:
+- `AWS_USER_NAME`
+- `AWS_ACCOUNT_ALIAS`
+- `AWS_STS_EXPIRY_ISO8601`
+- `AWS_STS_EXPIRY_EPOCH`
 
 ## Run tests
 
@@ -64,7 +109,7 @@ Read more about conditional access policies [here](https://docs.aws.amazon.com/I
 
 ### Instructions
 
-1. Use the [user group cloudformation stack](cloudformation/user-group-stack.json) to create user groups: billing, engineering, and readonly.
+1. Use the AWS CloudFormation [employee access stack](cloudformation/employee-access-stack.yaml) to create user groups: billing, engineering, and readonly.
 2. Navigate to the AWS IAM dashboard, and move users into the appropriate groups.
 3. Have users [enabled MFA](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_mfa_enable_virtual.html) so they can perform self service.
 
@@ -85,3 +130,46 @@ For example, when the user logs into the AWS Console and completes the MFA proce
 For example, when the user requests an STS token and completes the process with an MFA code, they will assume the custom policy `AllowEngineeringAccess` as well.
 
 By default a user in the Engineering Group that has generated an AWS Profile for CLI programmatic use, the AWS Profile assumes `IAMReadOnlyAccess`. The condition to use `AllowEngineeringAccess` is based on whether the user completes an STS token request with a valid MFA code for temporary access credentials.
+
+### Demo
+
+This example demonstrates that the holder of the AWS Secret Access Key must provide an MFA Code to gain write access to an AWS account. Otherwise the credentials will have read only access only.
+
+1. Create a programmatic user called `developer` with the AWS IAM console,
+1. Keep a copy of the AWS Access Key ID and AWS Secret Access Key for later steps.
+1. Assign a MFA device. MFA Code is required for demo.
+1. Add the new `developer` user into the `DeveloperAccess` IAM group.
+1. Then open a terminal and enter the following commands.
+
+```bash
+aws_profile_add developer
+# Prompted for:
+#  AWS Access Key ID (secret)
+#  AWS Secret Access Key (secret)
+#  Default region name (eg. ca-central-1)
+#  Default output format (eg. json)
+
+# Set the AWS profile to developer
+aws_profile_set developer
+
+# List all s3 buckets visible to the user
+aws s3 ls
+
+# Attempt to create a bucket (should fail with AccessDenied)
+aws s3 mb s3://some-unique-bucket-name
+
+aws_sts_get_session_token
+# Prompted for: One-time Password (MFA Code)
+
+# Attempt to create a bucket again (should succeed)
+aws s3 mb s3://some-unique-bucket-name
+
+# Cleanup: remove bucket
+aws s3 rb s3://some-unique-bucket-name
+
+# Restore original profile, including the temporary access token
+aws_profile_reset
+
+# Attempt to create a bucket again (should fail with AccessDenied)
+aws s3 mb s3://some-unique-bucket-name
+```
